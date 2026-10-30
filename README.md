@@ -69,11 +69,38 @@ src/
 
 ## API
 
-| Method | Endpoint        | Description                          |
-| ------ | --------------- | ------------------------------------ |
-| GET    | `/api/health`   | Liveness + database connectivity     |
+All endpoints except `/api/health` and `/api/auth/login` require the `token` HttpOnly cookie.
 
-_More endpoints are documented as modules are added._
+| Method | Endpoint                     | Description                                              |
+| ------ | ---------------------------- | -------------------------------------------------------- |
+| GET    | `/api/health`                | Liveness + database connectivity                         |
+| POST   | `/api/auth/login`            | Sign in, sets HttpOnly cookie (rate limited 10 / 15 min) |
+| POST   | `/api/auth/logout`           | Clear the session cookie                                 |
+| GET    | `/api/auth/me`               | Current admin                                            |
+| GET    | `/api/doctors`               | List doctors (search, filter, sort, paginate) + patient counts |
+| POST   | `/api/doctors`               | Create doctor                                            |
+| GET    | `/api/doctors/filters`       | Specializations + hospitals for filter dropdowns         |
+| GET    | `/api/doctors/options`       | Lightweight doctor list for select inputs                |
+| GET    | `/api/doctors/:id`           | Doctor details + patient count by status                 |
+| PATCH  | `/api/doctors/:id`           | Update doctor                                            |
+| DELETE | `/api/doctors/:id`           | Delete doctor **and their patients** (transaction)       |
+| GET    | `/api/doctors/:id/patients`  | The doctor's patients (same query params as patients)    |
+| POST   | `/api/doctors/:id/patients`  | Add a patient under the doctor                           |
+| GET    | `/api/patients`              | List patients (search, filter, sort, paginate)           |
+| POST   | `/api/patients`              | Create patient (`doctor` in body)                        |
+| GET    | `/api/patients/:id`          | Patient details                                          |
+| PATCH  | `/api/patients/:id`          | Update patient (incl. reassigning doctor)                |
+| DELETE | `/api/patients/:id`          | Delete patient                                           |
+| GET    | `/api/dashboard/stats`       | Aggregated analytics, `?range=7d\|30d\|12m`              |
+
+### Query parameters
+
+| Endpoint         | Params                                                                                         |
+| ---------------- | ---------------------------------------------------------------------------------------------- |
+| `GET /doctors`   | `page`, `limit` (≤100), `search`, `specialization`, `hospital`, `from`, `to` (joined, `YYYY-MM-DD`), `sort` = `newest\|oldest\|name` |
+| `GET /patients`  | `page`, `limit` (≤100), `search` (name/phone/email), `condition`, `status`, `gender`, `doctor`, `from`, `to` (admission date), `sort` = `newest\|oldest\|name` |
+
+Dates are interpreted in Bangladesh time (Asia/Dhaka); `to` is inclusive.
 
 ### Response format
 
@@ -84,6 +111,49 @@ _More endpoints are documented as modules are added._
 ```json
 { "success": false, "message": "Validation failed", "errors": [{ "field": "email", "message": "Invalid email" }] }
 ```
+
+## Data Model & Indexes
+
+`doctors` and `patients` are separate collections; each patient references its doctor by `doctor: ObjectId`
+(no embedded arrays to keep in sync). Compound indexes follow the **Equality → Sort → Range** rule.
+
+| Collection | Index                              | Serves                                          |
+| ---------- | ---------------------------------- | ----------------------------------------------- |
+| admins     | `email` (unique)                   | login lookup                                    |
+| doctors    | `email` (unique)                   | duplicate protection                            |
+| doctors    | `searchTokens`                     | prefix search on name / hospital / specialization / email |
+| doctors    | `createdAt`                        | default sort, joined-date filter                |
+| doctors    | `specialization, createdAt`        | specialization filter + sort                    |
+| doctors    | `hospital, createdAt`              | hospital filter + sort, `distinct("hospital")`  |
+| patients   | `doctor, admissionDate`            | a doctor's patients, per-doctor counts          |
+| patients   | `condition, admissionDate`         | condition filter + sort                         |
+| patients   | `status, admissionDate`            | status filter + sort                            |
+| patients   | `admissionDate`                    | default sort, date filter, admissions trend     |
+| patients   | `searchTokens`                     | prefix search on name / phone / email           |
+
+**Search.** Unanchored `/term/i` regexes scan the whole collection, and `$text` only matches whole words
+("sar" ≠ "Sarah"). Each document stores lower-cased `searchTokens`; anchored prefix regexes (`^sar`) on that
+multikey index give search-as-you-type on any word while still using the index. User input is regex-escaped.
+
+**Explain-plan evidence** (seeded data):
+
+```
+doctors search 'sar'          IXSCAN(searchTokens_1)                    docsExamined=1  returned=1
+doctors specialization+sort   IXSCAN(specialization_1_createdAt_-1)     docsExamined=4  returned=4
+patients condition+sort       IXSCAN(condition_1_admissionDate_-1)      docsExamined=10 returned=10
+patients of doctor+sort       IXSCAN(doctor_1_admissionDate_-1)         docsExamined=7  returned=7
+```
+
+**Other query patterns:** `find` + `countDocuments` run in parallel with `.lean()`; patient counts for a page of
+doctors come from one `$in` + `$group` query (no N+1); the dashboard runs its aggregations concurrently and uses
+`estimatedDocumentCount()` for totals.
+
+## Seed Data
+
+`npm run seed` wipes the database and creates a demo admin (`admin@doctortracker.com` / `Admin@123`),
+25 doctors across 10 specializations and 9 Bangladeshi hospitals, and 450 patients. Patient conditions match
+their doctor's specialization and admissions trend upward over 12 months, so the dashboard is meaningful.
+The generator is deterministic (seeded PRNG).
 
 ## Deployment (Render)
 
