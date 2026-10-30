@@ -4,7 +4,7 @@ REST API for **Doctor Tracker**, a secure admin portal for managing doctors and 
 Built with **Node.js, Express 5, TypeScript, MongoDB (Mongoose) and Zod**.
 
 > The full project documentation (architecture, technical decisions, screenshots) lives in the
-> [frontend repository README](https://github.com/<username>/doctor-tracker-frontend).
+> [frontend repository README](https://github.com/habibullahmkc/doctor-tracker-frontend).
 
 ## Tech Stack
 
@@ -20,7 +20,7 @@ Built with **Node.js, Express 5, TypeScript, MongoDB (Mongoose) and Zod**.
 ## Setup Guide
 
 ```bash
-git clone https://github.com/<username>/doctor-tracker-backend.git
+git clone https://github.com/habibullahmkc/doctor-tracker-backend.git
 cd doctor-tracker-backend
 npm install
 cp .env.example .env      # then fill in the values
