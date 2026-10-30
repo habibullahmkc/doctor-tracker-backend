@@ -23,6 +23,47 @@ function buildBuckets(range: StatsRange) {
   return { start, keys, format: "%Y-%m-%d" };
 }
 
+const TREND_MONTHS = 8;
+
+/**
+ * Month-by-month totals for the stat-card sparklines: new doctors/patients per
+ * month plus running totals (and patients-per-doctor) at the end of each month.
+ */
+async function getMonthlyTrends() {
+  const months = Array.from({ length: TREND_MONTHS }, (_, i) => startOfDhakaMonth(TREND_MONTHS - 1 - i));
+  const windowStart = months[0].start;
+  const byMonth = (field: string) => ({
+    $group: { _id: { $dateToString: { date: `$${field}`, format: "%Y-%m", timezone: TIMEZONE } }, count: { $sum: 1 } },
+  });
+
+  const [doctorsBefore, patientsBefore, doctorRows, patientRows] = await Promise.all([
+    DoctorModel.countDocuments({ createdAt: { $lt: windowStart } }),
+    PatientModel.countDocuments({ admissionDate: { $lt: windowStart } }),
+    DoctorModel.aggregate<Bucket>([{ $match: { createdAt: { $gte: windowStart } } }, byMonth("createdAt")]),
+    PatientModel.aggregate<Bucket>([{ $match: { admissionDate: { $gte: windowStart } } }, byMonth("admissionDate")]),
+  ]);
+
+  const newDoctorsByMonth = new Map(doctorRows.map((row) => [row._id, row.count]));
+  const newPatientsByMonth = new Map(patientRows.map((row) => [row._id, row.count]));
+  let doctors = doctorsBefore;
+  let patients = patientsBefore;
+
+  return months.map(({ key }) => {
+    const newDoctors = newDoctorsByMonth.get(key) ?? 0;
+    const newPatients = newPatientsByMonth.get(key) ?? 0;
+    doctors += newDoctors;
+    patients += newPatients;
+    return {
+      month: key,
+      newDoctors,
+      newPatients,
+      doctors,
+      patients,
+      avgPerDoctor: doctors ? Number((patients / doctors).toFixed(1)) : 0,
+    };
+  });
+}
+
 const toNameValue = (rows: NameValue[]) => rows.map((row) => ({ name: row._id, value: row.count }));
 
 export async function getDashboardStats(range: StatsRange) {
@@ -43,6 +84,7 @@ export async function getDashboardStats(range: StatsRange) {
     byStatus,
     bySpecialization,
     recentPatients,
+    trends,
   ] = await Promise.all([
     DoctorModel.estimatedDocumentCount(), // O(1) collection metadata
     PatientModel.estimatedDocumentCount(),
@@ -99,6 +141,7 @@ export async function getDashboardStats(range: StatsRange) {
       .limit(5)
       .populate("doctor", "name")
       .lean(),
+    getMonthlyTrends(),
   ]);
 
   const admissionsByKey = new Map(admissions.map((row) => [row._id, row.count]));
@@ -119,5 +162,6 @@ export async function getDashboardStats(range: StatsRange) {
     byStatus: toNameValue(byStatus),
     bySpecialization: toNameValue(bySpecialization),
     recentPatients,
+    trends,
   };
 }
