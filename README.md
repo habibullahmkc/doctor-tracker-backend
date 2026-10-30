@@ -1,6 +1,8 @@
 # Doctor Tracker — Backend API
 
 REST API for **Doctor Tracker**, a secure admin portal for managing doctors and their patients.
+**Live API:** https://doctor-tracker-api-evvz.onrender.com/api/health · **Frontend:** https://doctor-tracker-psi.vercel.app
+
 Built with **Node.js, Express 5, TypeScript, MongoDB (Mongoose) and Zod**.
 
 > The full project documentation (architecture, technical decisions, screenshots) lives in the
