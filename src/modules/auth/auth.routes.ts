@@ -5,10 +5,13 @@ import { validate } from "../../middleware/validate";
 import { loginHandler, logoutHandler, meHandler } from "./auth.controller";
 import { loginSchema } from "./auth.schema";
 
-// Brute-force protection: 10 attempts / 15 min per IP + email.
+// Brute-force protection: 10 FAILED attempts / 15 min per IP + email.
+// Successful sign-ins are not counted, so legitimate users sharing an egress
+// IP (all traffic arrives via the Vercel proxy) are never locked out.
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   limit: 10,
+  skipSuccessfulRequests: true,
   standardHeaders: "draft-8",
   legacyHeaders: false,
   keyGenerator: (req) => `${ipKeyGenerator(req.ip ?? "")}:${String(req.body?.email ?? "").toLowerCase()}`,
