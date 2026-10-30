@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { DAY_MS, TIMEZONE, startOfDhakaDay, startOfDhakaMonth, toDhakaYMD } from "../../utils/dates";
+import { DAY_MS, startOfDhakaDay, startOfDhakaMonth, TIMEZONE, toDhakaYMD } from "../../utils/dates";
 import { DoctorModel } from "../doctors/doctor.model";
 import { PatientModel } from "../patients/patient.model";
 
@@ -128,10 +128,7 @@ export async function getDashboardStats(range: StatsRange) {
       { $group: { _id: "$condition", count: { $sum: 1 } } },
       { $sort: { count: -1 } },
     ]),
-    PatientModel.aggregate<NameValue>([
-      { $group: { _id: "$status", count: { $sum: 1 } } },
-      { $sort: { count: -1 } },
-    ]),
+    PatientModel.aggregate<NameValue>([{ $group: { _id: "$status", count: { $sum: 1 } } }, { $sort: { count: -1 } }]),
     DoctorModel.aggregate<NameValue>([
       { $group: { _id: "$specialization", count: { $sum: 1 } } },
       { $sort: { count: -1 } },

@@ -20,7 +20,13 @@ const envSchema = z.object({
   DNS_SERVERS: z
     .string()
     .optional()
-    .transform((value) => value?.split(",").map((server) => server.trim()).filter(Boolean) ?? []),
+    .transform(
+      (value) =>
+        value
+          ?.split(",")
+          .map((server) => server.trim())
+          .filter(Boolean) ?? [],
+    ),
 });
 
 const parsed = envSchema.safeParse(process.env);

@@ -29,9 +29,72 @@ const random = () => {
 const pick = <T>(items: readonly T[]) => items[Math.floor(random() * items.length)];
 const between = (min: number, max: number) => Math.floor(random() * (max - min + 1)) + min;
 
-const MALE_NAMES = ["Rahim", "Karim", "Tanvir", "Fahim", "Arif", "Sakib", "Nayeem", "Imran", "Rakib", "Shahed", "Mahmud", "Hasan", "Sabbir", "Rifat", "Jubayer", "Asif", "Ashraful", "Mehedi", "Zahid", "Rashed"];
-const FEMALE_NAMES = ["Fatema", "Nusrat", "Sadia", "Tahmina", "Farhana", "Sharmin", "Ayesha", "Mim", "Tasnim", "Rumana", "Jannat", "Nadia", "Sumaiya", "Afroza", "Lamia", "Shirin", "Maliha", "Rehana", "Anika", "Sabina"];
-const SURNAMES = ["Ahmed", "Hossain", "Rahman", "Islam", "Chowdhury", "Khan", "Sarker", "Uddin", "Alam", "Akter", "Begum", "Karim", "Haque", "Siddique", "Talukder", "Mia", "Bhuiyan", "Sultana", "Kabir", "Mollah"];
+const MALE_NAMES = [
+  "Rahim",
+  "Karim",
+  "Tanvir",
+  "Fahim",
+  "Arif",
+  "Sakib",
+  "Nayeem",
+  "Imran",
+  "Rakib",
+  "Shahed",
+  "Mahmud",
+  "Hasan",
+  "Sabbir",
+  "Rifat",
+  "Jubayer",
+  "Asif",
+  "Ashraful",
+  "Mehedi",
+  "Zahid",
+  "Rashed",
+];
+const FEMALE_NAMES = [
+  "Fatema",
+  "Nusrat",
+  "Sadia",
+  "Tahmina",
+  "Farhana",
+  "Sharmin",
+  "Ayesha",
+  "Mim",
+  "Tasnim",
+  "Rumana",
+  "Jannat",
+  "Nadia",
+  "Sumaiya",
+  "Afroza",
+  "Lamia",
+  "Shirin",
+  "Maliha",
+  "Rehana",
+  "Anika",
+  "Sabina",
+];
+const SURNAMES = [
+  "Ahmed",
+  "Hossain",
+  "Rahman",
+  "Islam",
+  "Chowdhury",
+  "Khan",
+  "Sarker",
+  "Uddin",
+  "Alam",
+  "Akter",
+  "Begum",
+  "Karim",
+  "Haque",
+  "Siddique",
+  "Talukder",
+  "Mia",
+  "Bhuiyan",
+  "Sultana",
+  "Kabir",
+  "Mollah",
+];
 const HOSPITALS = [
   "Square Hospital",
   "Evercare Hospital Dhaka",
@@ -45,16 +108,30 @@ const HOSPITALS = [
 ];
 
 const DOCTOR_PROFILES: Array<[string, Specialization]> = [
-  ["Sarah Ahmed", "Cardiology"], ["Kamal Hossain", "Cardiology"], ["Nasrin Sultana", "Cardiology"],
-  ["Farhan Kabir", "Neurology"], ["Tahmina Akter", "Neurology"],
-  ["Mizanur Rahman", "Orthopedics"], ["Shafiqul Islam", "Orthopedics"],
-  ["Ruma Chowdhury", "Pediatrics"], ["Habibur Rahman", "Pediatrics"], ["Jannatul Ferdous", "Pediatrics"],
-  ["Anisul Haque", "Dermatology"], ["Sabrina Karim", "Dermatology"],
-  ["Shamima Nasrin", "Gynecology"], ["Rokeya Begum", "Gynecology"],
-  ["Abdul Mannan", "Oncology"], ["Lutfun Nahar", "Oncology"],
-  ["Rezaul Karim", "Psychiatry"], ["Nadia Islam", "Psychiatry"],
-  ["Mahbub Alam", "General Medicine"], ["Fatema Tuz Zohra", "General Medicine"], ["Ashikur Rahman", "General Medicine"], ["Monirul Islam", "General Medicine"],
-  ["Sharmin Haque", "ENT"], ["Tanvir Siddique", "ENT"],
+  ["Sarah Ahmed", "Cardiology"],
+  ["Kamal Hossain", "Cardiology"],
+  ["Nasrin Sultana", "Cardiology"],
+  ["Farhan Kabir", "Neurology"],
+  ["Tahmina Akter", "Neurology"],
+  ["Mizanur Rahman", "Orthopedics"],
+  ["Shafiqul Islam", "Orthopedics"],
+  ["Ruma Chowdhury", "Pediatrics"],
+  ["Habibur Rahman", "Pediatrics"],
+  ["Jannatul Ferdous", "Pediatrics"],
+  ["Anisul Haque", "Dermatology"],
+  ["Sabrina Karim", "Dermatology"],
+  ["Shamima Nasrin", "Gynecology"],
+  ["Rokeya Begum", "Gynecology"],
+  ["Abdul Mannan", "Oncology"],
+  ["Lutfun Nahar", "Oncology"],
+  ["Rezaul Karim", "Psychiatry"],
+  ["Nadia Islam", "Psychiatry"],
+  ["Mahbub Alam", "General Medicine"],
+  ["Fatema Tuz Zohra", "General Medicine"],
+  ["Ashikur Rahman", "General Medicine"],
+  ["Monirul Islam", "General Medicine"],
+  ["Sharmin Haque", "ENT"],
+  ["Tanvir Siddique", "ENT"],
   ["Imtiaz Uddin", "Cardiology"],
 ];
 
@@ -83,7 +160,7 @@ const phone = () => `+8801${pick(["3", "5", "6", "7", "8", "9"])}${String(betwee
 /** Recent admissions are more likely → visible upward trend on the dashboard. */
 function admissionDate(notBefore: Date, now: Date) {
   const span = now.getTime() - notBefore.getTime();
-  const skew = Math.pow(random(), 0.6); // biased towards 1 (recent)
+  const skew = random() ** 0.6; // biased towards 1 (recent)
   return new Date(notBefore.getTime() + skew * span);
 }
 

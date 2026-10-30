@@ -1,11 +1,13 @@
-import mongoose, { Types, type QueryFilter } from "mongoose";
+import mongoose, { type QueryFilter, Types } from "mongoose";
 import { SPECIALIZATIONS } from "../../constants/enums";
 import { AppError } from "../../utils/AppError";
+import { CACHE_KEYS, cache, invalidateAnalytics } from "../../utils/cache";
 import { dateRangeFilter } from "../../utils/dates";
 import { buildPaginationMeta, toSkip } from "../../utils/pagination";
+import { countMatching } from "../../utils/query";
 import { buildSearchFilter } from "../../utils/searchTokens";
 import { PatientModel } from "../patients/patient.model";
-import { DoctorModel, type Doctor } from "./doctor.model";
+import { type Doctor, DoctorModel } from "./doctor.model";
 import type { DoctorBody, DoctorQuery, DoctorUpdate } from "./doctor.schema";
 
 const SORTS = {
@@ -32,12 +34,8 @@ export async function listDoctors(query: DoctorQuery) {
   if (joined) filter.createdAt = joined;
 
   const [doctors, total] = await Promise.all([
-    DoctorModel.find(filter)
-      .sort(SORTS[query.sort])
-      .skip(toSkip(query.page, query.limit))
-      .limit(query.limit)
-      .lean(),
-    DoctorModel.countDocuments(filter),
+    DoctorModel.find(filter).sort(SORTS[query.sort]).skip(toSkip(query.page, query.limit)).limit(query.limit).lean(),
+    countMatching(DoctorModel, filter),
   ]);
 
   const counts = await countPatientsByDoctor(doctors.map((doctor) => doctor._id));
@@ -64,13 +62,18 @@ export async function getDoctor(id: string) {
   return { ...doctor, patientCount, patientsByStatus };
 }
 
-export const createDoctor = async (body: DoctorBody) => (await DoctorModel.create(body)).toJSON();
+export async function createDoctor(body: DoctorBody) {
+  const doctor = await DoctorModel.create(body);
+  invalidateAnalytics();
+  return doctor.toJSON();
+}
 
 export async function updateDoctor(id: string, body: DoctorUpdate) {
   const doctor = await DoctorModel.findById(id);
   if (!doctor) throw new AppError(404, "Doctor not found");
   doctor.set(body);
   await doctor.save(); // re-runs validation and rebuilds searchTokens
+  invalidateAnalytics();
   return doctor.toJSON();
 }
 
@@ -85,6 +88,7 @@ export async function deleteDoctor(id: string) {
       const result = await PatientModel.deleteMany({ doctor: doctor._id }, { session });
       deletedPatients = result.deletedCount;
     });
+    invalidateAnalytics();
     return { deletedPatients };
   } finally {
     await session.endSession();
@@ -92,9 +96,11 @@ export async function deleteDoctor(id: string) {
 }
 
 /** Values for the filter dropdowns. */
-export async function getDoctorFilterOptions() {
-  const hospitals = (await DoctorModel.distinct("hospital")) as string[];
-  return { specializations: SPECIALIZATIONS, hospitals: hospitals.sort((a, b) => a.localeCompare(b)) };
+export function getDoctorFilterOptions() {
+  return cache.getOrSet(CACHE_KEYS.doctorFilters, 5 * 60_000, async () => {
+    const hospitals = (await DoctorModel.distinct("hospital")) as string[];
+    return { specializations: SPECIALIZATIONS, hospitals: hospitals.sort((a, b) => a.localeCompare(b)) };
+  });
 }
 
 /** Lightweight list for "select a doctor" inputs. */

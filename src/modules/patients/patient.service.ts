@@ -1,10 +1,12 @@
-import { Types, type QueryFilter } from "mongoose";
+import { type QueryFilter, Types } from "mongoose";
 import { AppError } from "../../utils/AppError";
+import { invalidateAnalytics } from "../../utils/cache";
 import { dateRangeFilter } from "../../utils/dates";
 import { buildPaginationMeta, toSkip } from "../../utils/pagination";
+import { countMatching } from "../../utils/query";
 import { buildSearchFilter } from "../../utils/searchTokens";
 import { assertDoctorExists } from "../doctors/doctor.service";
-import { PatientModel, type Patient } from "./patient.model";
+import { type Patient, PatientModel } from "./patient.model";
 import type { PatientCreate, PatientQuery, PatientUpdate } from "./patient.schema";
 
 const SORTS = {
@@ -31,7 +33,7 @@ export async function listPatients(query: PatientQuery) {
       .limit(query.limit)
       .populate("doctor", DOCTOR_FIELDS) // one batched $in query, not one per row
       .lean(),
-    PatientModel.countDocuments(filter),
+    countMatching(PatientModel, filter),
   ]);
 
   return { data: patients, pagination: buildPaginationMeta(query.page, query.limit, total) };
@@ -46,6 +48,7 @@ export async function getPatient(id: string) {
 export async function createPatient(body: PatientCreate) {
   await assertDoctorExists(body.doctor);
   const patient = await PatientModel.create(body);
+  invalidateAnalytics();
   await patient.populate("doctor", DOCTOR_FIELDS);
   return patient.toJSON();
 }
@@ -56,6 +59,7 @@ export async function updatePatient(id: string, body: PatientUpdate) {
   if (!patient) throw new AppError(404, "Patient not found");
   patient.set(body);
   await patient.save(); // re-runs validation and rebuilds searchTokens
+  invalidateAnalytics();
   await patient.populate("doctor", DOCTOR_FIELDS);
   return patient.toJSON();
 }
@@ -63,4 +67,5 @@ export async function updatePatient(id: string, body: PatientUpdate) {
 export async function deletePatient(id: string) {
   const patient = await PatientModel.findByIdAndDelete(id);
   if (!patient) throw new AppError(404, "Patient not found");
+  invalidateAnalytics();
 }

@@ -1,3 +1,4 @@
+import compression from "compression";
 import cookieParser from "cookie-parser";
 import cors from "cors";
 import express from "express";
@@ -17,6 +18,7 @@ app.set("trust proxy", 1);
 app.disable("x-powered-by");
 
 app.use(helmet());
+app.use(compression());
 app.use(cors({ origin: env.CLIENT_URL, credentials: true }));
 app.use(express.json({ limit: "100kb" }));
 app.use(cookieParser());

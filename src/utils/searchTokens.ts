@@ -20,12 +20,7 @@ export function toTokens(...parts: Array<string | null | undefined>) {
  * unlike unanchored /term/i which forces a collection scan.
  */
 export function buildSearchFilter(search?: string) {
-  const terms = search
-    ?.trim()
-    .toLowerCase()
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 5);
+  const terms = search?.trim().toLowerCase().split(/\s+/).filter(Boolean).slice(0, 5);
 
   if (!terms?.length) return {};
   return { searchTokens: { $all: terms.map((term) => new RegExp(`^${escapeRegex(term)}`)) } };

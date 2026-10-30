@@ -1,4 +1,4 @@
-import { Schema, model, type InferSchemaType } from "mongoose";
+import { type InferSchemaType, model, Schema } from "mongoose";
 import { SPECIALIZATIONS } from "../../constants/enums";
 import { toTokens } from "../../utils/searchTokens";
 
