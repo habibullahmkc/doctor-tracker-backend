@@ -74,7 +74,7 @@ All endpoints except `/api/health` and `/api/auth/login` require the `token` Htt
 | Method | Endpoint                     | Description                                              |
 | ------ | ---------------------------- | -------------------------------------------------------- |
 | GET    | `/api/health`                | Liveness + database connectivity                         |
-| POST   | `/api/auth/login`            | Sign in, sets HttpOnly cookie (rate limited 10 / 15 min) |
+| POST   | `/api/auth/login`            | Sign in, sets HttpOnly cookie (10 failed attempts / 15 min per IP + email) |
 | POST   | `/api/auth/logout`           | Clear the session cookie                                 |
 | GET    | `/api/auth/me`               | Current admin                                            |
 | GET    | `/api/doctors`               | List doctors (search, filter, sort, paginate) + patient counts |
@@ -91,7 +91,7 @@ All endpoints except `/api/health` and `/api/auth/login` require the `token` Htt
 | GET    | `/api/patients/:id`          | Patient details                                          |
 | PATCH  | `/api/patients/:id`          | Update patient (incl. reassigning doctor)                |
 | DELETE | `/api/patients/:id`          | Delete patient                                           |
-| GET    | `/api/dashboard/stats`       | Aggregated analytics, `?range=7d\|30d\|12m`              |
+| GET    | `/api/dashboard/stats`       | Totals, admissions trend (`?range=7d\|30d\|12m`), status / condition / specialization breakdowns, top doctors, recent admissions, 8-month trends |
 
 ### Query parameters
 
@@ -154,6 +154,14 @@ doctors come from one `$in` + `$group` query (no N+1); the dashboard runs its ag
 25 doctors across 10 specializations and 9 Bangladeshi hospitals, and 450 patients. Patient conditions match
 their doctor's specialization and admissions trend upward over 12 months, so the dashboard is meaningful.
 The generator is deterministic (seeded PRNG).
+
+## Security
+
+- Passwords hashed with bcrypt. Unknown emails still run a bcrypt compare, so response time doesn't reveal which accounts exist.
+- JWT stored in an **HttpOnly, Secure, SameSite=Lax** cookie. The frontend proxies `/api/*` on its own origin, so the cookie is first-party.
+- `helmet` security headers, a CORS allow-list (`CLIENT_URL`), and `trust proxy` for correct client IPs behind Render.
+- Login rate limit counts only **failed** attempts, so users sharing the proxy's IP are never locked out by successful sign-ins.
+- Every input (body, params, query, env) is validated with Zod, and all errors go through one central handler that returns the same JSON shape.
 
 ## Deployment (Render)
 
