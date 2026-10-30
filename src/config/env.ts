@@ -15,6 +15,12 @@ const envSchema = z.object({
     .min(1)
     .transform((value) => value.split(",").map((origin) => origin.trim().replace(/\/$/, "")))
     .pipe(z.array(z.url("CLIENT_URL must contain valid URLs"))),
+  // Optional, local troubleshooting only: DNS servers used to resolve the
+  // mongodb+srv:// record when the OS resolver refuses SRV queries.
+  DNS_SERVERS: z
+    .string()
+    .optional()
+    .transform((value) => value?.split(",").map((server) => server.trim()).filter(Boolean) ?? []),
 });
 
 const parsed = envSchema.safeParse(process.env);
