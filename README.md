@@ -1,5 +1,7 @@
 # Doctor Tracker — Backend API
 
+[![CI](https://github.com/habibullahmkc/doctor-tracker-backend/actions/workflows/ci.yml/badge.svg)](https://github.com/habibullahmkc/doctor-tracker-backend/actions/workflows/ci.yml)
+
 REST API for **Doctor Tracker**, a secure admin portal for managing doctors and their patients.
 **Live API:** https://doctor-tracker-api-evvz.onrender.com/api/health · **Frontend:** https://doctor-tracker-psi.vercel.app
 
@@ -38,6 +40,11 @@ npm run dev               # http://localhost:5000/api/health
 | `npm start`         | Run the compiled server              |
 | `npm run seed`      | Reset DB with demo admin + data      |
 | `npm run typecheck` | Type-check without emitting          |
+| `npm run lint`      | Biome lint + format check            |
+| `npm test`          | 31 unit tests (`node:test`, no DB needed) |
+| `npm run test:e2e`  | 70-check end-to-end suite against a running API (`BASE_URL`, default `http://localhost:5000`) |
+
+CI (GitHub Actions) runs lint, typecheck, unit tests and the build on every push.
 
 ### Environment Variables
 
@@ -60,11 +67,14 @@ src/
 ├── constants/     # shared enums (specializations, conditions, ...)
 ├── middleware/    # auth, validation, error handling, 404
 ├── modules/       # feature modules: auth, doctors, patients, dashboard
-├── utils/         # AppError, pagination, search helpers
+├── utils/         # AppError, pagination, search tokens, Dhaka dates, TTL cache, fast counts
 ├── scripts/       # seed script
 ├── routes.ts      # mounts module routers under /api
 ├── app.ts         # express app (no listen — testable)
 └── server.ts      # db connect + listen + graceful shutdown
+test/
+├── unit/          # node:test unit tests (no database)
+└── e2e/           # end-to-end API suite (needs a running API)
 ```
 
 ## API
@@ -143,6 +153,11 @@ doctors specialization+sort   IXSCAN(specialization_1_createdAt_-1)     docsExam
 patients condition+sort       IXSCAN(condition_1_admissionDate_-1)      docsExamined=10 returned=10
 patients of doctor+sort       IXSCAN(doctor_1_admissionDate_-1)         docsExamined=7  returned=7
 ```
+
+**Caching.** Dashboard stats (per range) and filter options are held in an in-process TTL cache (60 s / 5 min).
+Concurrent requests share one in-flight computation, and every doctor or patient write invalidates the cache, so the
+numbers are never stale. With several API instances this moves to Redis behind the same interface. Unfiltered list
+totals use `estimatedDocumentCount()`, and responses are gzip-compressed.
 
 **Other query patterns:** `find` + `countDocuments` run in parallel with `.lean()`; patient counts for a page of
 doctors come from one `$in` + `$group` query (no N+1); the dashboard runs its aggregations concurrently and uses
